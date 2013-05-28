@@ -40,7 +40,7 @@ if __name__ == "__main__":
     for m in xrange(1, 9):
         getlimitswitchstatus(m, s)
 
-    s.write("1M100\r")
+    s.write("1M500\r")
     time.sleep(0.2)
     while s.inWaiting(): 
         s.read()
