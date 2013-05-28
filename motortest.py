@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 #
+# See section [Appendix-A] of the ER3-Manual.pdf for the serial command
+# protocol for the arm.
+#
 # Ok, so, joystick on /dev/input/js0, use pygame to read the joystick stuff
 #
 
@@ -11,9 +14,7 @@ def openrobotport():
 
 def getmotorremainder(m, s):
     s.write("%dQ" % m)
-    #while not s.inWaiting():
-    #    print "oops, serial port not ready to read yet, sleep 1..."
-    #    time.sleep(0.1)
+    time.sleep(0.1) # probably not needed, s.read() should block
     b1 = ord(s.read())
     b2 = ord(s.read())
     v = ((b1 & 0x7f) << 7) + (b2 & 0x7f)
@@ -22,12 +23,21 @@ def getmotorremainder(m, s):
 def getlimitswitchstatus(m, s):
     msg = "%dL" % m
     s.write(msg)
-    time.sleep(0.2)
-    #while not s.inWaiting():
-    #    print "oops, serial port not ready to read yet, sleep 1..."
-    #    time.sleep(0.1)
+    time.sleep(0.1) # probably not needed, s.read() should block
     b = ord(s.read())
     print "sent string '%s' to read limit switch %d gives %d '%c'" % (msg, m, b, chr(b))
+
+def domotortest(m, s):
+    for delta in [20, -20]:
+        msg = "%dM%d\r" % (m, delta)
+        print "domotortest running '%s'..." % mgs,
+        s.write(msg)
+        time.sleep(0.2)
+        readcount = 0
+        while s.inWaiting():
+            readcount += s.read()
+        print "... done, read %d bytes from serial in response" % readcount
+
 
 if __name__ == "__main__":
     s = openrobotport()
@@ -40,7 +50,4 @@ if __name__ == "__main__":
     for m in xrange(1, 9):
         getlimitswitchstatus(m, s)
 
-    s.write("1M500\r")
-    time.sleep(0.2)
-    while s.inWaiting(): 
-        s.read()
+    domotortest(1, s)
