@@ -27,10 +27,10 @@ def getlimitswitchstatus(m, s):
     b = ord(s.read())
     print "sent string '%s' to read limit switch %d gives %d '%c'" % (msg, m, b, chr(b))
 
-def domotortest(m, s):
-    for delta in [20, -20]:
+def domotortest(m, s, deltapos=20, deltaneg=-20):
+    for delta in [deltapos, deltaneg]:
         msg = "%dM%d\r" % (m, delta)
-        print "domotortest running '%s'..." % mgs,
+        print "domotortest running '%s'..." % msg,
         s.write(msg)
         time.sleep(0.2)
         readcount = 0
@@ -50,4 +50,5 @@ if __name__ == "__main__":
     for m in xrange(1, 9):
         getlimitswitchstatus(m, s)
 
-    domotortest(1, s)
+    # domotortest(1, s)
+    domotortest(8, s)
