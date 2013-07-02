@@ -27,15 +27,23 @@ class ERIII:
         b = ord(self.s.read())
         print "sent string '%s' to read limit switch %d gives %d '%c'" % (msg, m, b, chr(b))
 
+    ### UNI directional commands: after sending, expect no response ###
+
     def stepmotor(self, m, stepsize):
         msg = "%dM%d\r" % (m, stepsize)
-        #print "domotortest running '%s'..." % msg,
         self.s.write(msg)
-        #time.sleep(0.2)
-        #readcount = 0
-        #while self.s.inWaiting():
-        #    readcount += self.s.read()
-        #    print "... done, read %d bytes from serial in response" % readcount
+
+    def stopmotor(self, m):
+        msg = "%dP" % (m)
+        self.s.write(msg)
+
+    def brake(self):
+        msg = "B"
+        self.s.write(msg)
+
+    def resume(self):
+        msg = "C"
+        self.s.write(msg)
 
     def checkserial(self):
         readcount = 0

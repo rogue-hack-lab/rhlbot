@@ -135,10 +135,14 @@ log = open("test.log", "w")
 # So, each joint we control has a state: are we stepping it +, -, or leaving it alone
 basemode = 0
 elbowmode = 0
+wristpitchmode = 0
+wristrollmode = 0
 grippermode = 0
-wristmode = 0
 
 stepmultiplier = 10
+grippermultiplier = 2
+
+controlthreshold = 0.2
 
 # -------- Main Program Loop -----------
 while done==False:
@@ -149,48 +153,65 @@ while done==False:
         
         # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
         if event.type == pygame.JOYBUTTONDOWN:
-            print("Joystick button pressed.")
+            #print>>log, str(event)
+            if event.button == 2:
+                grippermode = 1
+            elif event.button == 3:
+                grippermode = -1
+
         if event.type == pygame.JOYBUTTONUP:
-            print("Joystick button released.")
+            grippermode = 0
 
         if event.type == pygame.JOYAXISMOTION and event.axis == 2:
-            if event.value < 0:
+            if event.value < -1*controlthreshold:
                 basemode = 1
+            elif: event.value > controlthreshold:
+                basemode = -1
             else:
-                if event.value > 0:
-                    basemode = -1
-                else:
-                    basemode = 0
+                basemode = 0
  
-        if event.type == pygame.JOYAXISMOTION and event.axis == 1:
-            if event.value < 0:
-                elbowmode = -1
-            else:
-                if event.value > 0:
+        if event.type == pygame.JOYAXISMOTION:
+            if event.axis == 1:
+                if event.value < -1*controlthreshold:
+                    elbowmode = -1
+                elif event.value > controlthreshold:
                     elbowmode = 1
                 else:
                     elbowmode = 0
+            elif event.axis == 0:
+                if event.value < -1*controlthreshold:
+                    wristrollmode = -1
+                elif event.value > controlthreshold:
+                    wristrollmode = 1
+                else:
+                    wristrollmode = 0
 
         if event.type == pygame.JOYHATMOTION:
-            log.write(str(event))
-            log.write("\n")
-            log.write(str(event.value[0]))
-            log.write("\n")
+            #log.write(str(event))
+            #log.write("\n")
+            #log.write(str(event.value[0]))
+            #log.write("\n")
             if event.value[1] < 0:
-                wristmode = -1
+                wristpitchmode = -1
+            elif: event.value[1] > 0:
+                wristpitchmode = 1
             else:
-                if event.value[1] > 0:
-                    wristmode = 1
-                else:
-                    wristmode = 0
+                wristpitchmode = 0
 
     if basemode != 0:
         r.stepmotor(1, (stepmultiplier * basemode))
     if elbowmode != 0:
         r.stepmotor(3, (stepmultiplier * elbowmode))
-    if wristmode != 0:
-        r.stepmotor(4, ((stepmultiplier*0.3) * wristmode))
-        r.stepmotor(5, (-1 * (stepmultiplier*0.3) * wristmode))
+    if wristpitchmode != 0:
+        r.stepmotor(4, ((stepmultiplier*0.3) * wristpitchmode))
+        r.stepmotor(5, (-1 * (stepmultiplier*0.3) * wristpitchmode))
+
+    if wristrollmode != 0:
+        r.stepmotor(4, ((stepmultiplier*0.3) * wristrollmode))
+        r.stepmotor(5, ((stepmultiplier*0.3) * wristrollmode))
+
+    if grippermode != 0:
+        r.stepmotor(8, (grippermultiplier * grippermode))
 
     r.checkserial();
     # while s.inWaiting():
