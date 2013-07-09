@@ -25,6 +25,8 @@ if __name__ == "__main__":
 BLACK    = (   0,   0,   0)
 WHITE    = ( 255, 255, 255)
 
+dbmsg = ""
+
 # This is a simple class that will help us print to the screen
 # It has nothing to do with the joysticks, just outputing the
 # information.
@@ -59,6 +61,7 @@ def dumpJoystickState(tp):
     # Get count of joysticks
     joystick_count = pygame.joystick.get_count()
 
+    tp.myprint(screen, "Debug: {}".format(dbmsg))
     tp.myprint(screen, "Number of joysticks: {}".format(joystick_count) )
     tp.indent()
     
@@ -112,7 +115,7 @@ def dumpJoystickState(tp):
 pygame.init()
  
 # Set the width and height of the screen [width,height]
-size = [500, 700]
+size = [800, 500]
 screen = pygame.display.set_mode(size)
 
 pygame.display.set_caption("My Game")
@@ -134,6 +137,7 @@ log = open("test.log", "w")
 
 # So, each joint we control has a state: are we stepping it +, -, or leaving it alone
 basemode = 0
+shouldermode = 0
 elbowmode = 0
 wristpitchmode = 0
 wristrollmode = 0
@@ -147,6 +151,8 @@ controlthreshold = 0.2
 # -------- Main Program Loop -----------
 while done==False:
     # EVENT PROCESSING STEP
+    dbmsg = ""
+
     for event in pygame.event.get(): # User did something
         if event.type == pygame.QUIT: # If user clicked close
             done=True # Flag that we are done so we exit this loop
@@ -154,18 +160,20 @@ while done==False:
         # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
         if event.type == pygame.JOYBUTTONDOWN:
             #print>>log, str(event)
-            if event.button == 2:
+            if event.button == 0:
                 grippermode = 1
-            elif event.button == 3:
+            elif event.button == 2 or event.button == 3:
                 grippermode = -1
+            dbmsg = "BUTTONDOWN (%s) gripper %d" % (str(event), grippermode)
 
         if event.type == pygame.JOYBUTTONUP:
             grippermode = 0
+            dbmsg = "BUTTONUP (%s) gripper %d" % (str(event), grippermode)
 
         if event.type == pygame.JOYAXISMOTION and event.axis == 2:
             if event.value < -1*controlthreshold:
                 basemode = 1
-            elif: event.value > controlthreshold:
+            elif event.value > controlthreshold:
                 basemode = -1
             else:
                 basemode = 0
@@ -180,26 +188,37 @@ while done==False:
                     elbowmode = 0
             elif event.axis == 0:
                 if event.value < -1*controlthreshold:
-                    wristrollmode = -1
+                    shouldermode = -1
                 elif event.value > controlthreshold:
-                    wristrollmode = 1
+                    shouldermode = 1
                 else:
-                    wristrollmode = 0
+                    shouldermode = 0
 
         if event.type == pygame.JOYHATMOTION:
             #log.write(str(event))
             #log.write("\n")
             #log.write(str(event.value[0]))
             #log.write("\n")
+            if event.value[0] < 0:
+                wristrollmode = -1
+            elif event.value[0] > 0:
+                wristrollmode = 1
+            else:
+                wristrollmode = 0
+
             if event.value[1] < 0:
                 wristpitchmode = -1
-            elif: event.value[1] > 0:
+            elif event.value[1] > 0:
                 wristpitchmode = 1
             else:
                 wristpitchmode = 0
 
+    dbmsg += ", modes(%d, %d, %d, %d, %d, %d)" % (basemode, shouldermode, elbowmode, wristpitchmode, wristrollmode, grippermode)
+
     if basemode != 0:
         r.stepmotor(1, (stepmultiplier * basemode))
+    if shouldermode != 0:
+        r.stepmotor(2, (stepmultiplier * shouldermode))
     if elbowmode != 0:
         r.stepmotor(3, (stepmultiplier * elbowmode))
     if wristpitchmode != 0:
