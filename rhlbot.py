@@ -191,22 +191,11 @@ while done==False:
             
         if event.type == pygame.JOYBUTTONDOWN:
             if event.button == 10:
-                #r.save_position()
                 # set "current arm state" as our go to position
-                for k in scorbot.counts.keys():
-                    scorbot.counts[k] = 0
+                r.save_position()
             elif event.button == 11:
                 # go back to last set position
-                cnts = scorbot.counts.copy()
-                for m in scorbot.counts.keys():
-                    scorbot.counts[m] = 0
-                import time
-                print "have recorded motor counts of:", cnts
-                for motor in cnts.keys():
-                    r.stepmotor(motor, -1 * cnts[motor])
-                while r.checkcompletion() == '0':
-                    time.sleep(0.2)
-                # r.restore_position()
+                r.restore_position()
                 break
 
         pygame_event_to_scorbot_state(event, rs)

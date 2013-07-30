@@ -74,8 +74,8 @@ class ERIII:
             counts[m] = 0
         print "have recorded motor counts of:", cnts, ". Returning arm to base position."
         for motor in cnts.keys():
-            stepmotor(motor, -1 * cnts[motor])
-        while checkcompletion() == '0':
+            self.stepmotor(motor, -1 * cnts[motor])
+        while self.checkcompletion() == '0':
             time.sleep(0.2)
 
     def advance(self, oldstate, newstate):
