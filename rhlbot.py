@@ -2,24 +2,18 @@
 import pygame
 import scorbot
 
+import os, sys
+
 if __name__ == "__main__":
     r = scorbot.ERIII()
+    rs = scorbot.state()
 
     if not r.s.isOpen():
         print "ACK! can't open the serial port"
         sys.exit(1)
 
-    #for m in xrange(1, 9):
-    #    getmotorremainder(m, s)
-    #for m in xrange(1, 9):
-    #    getlimitswitchstatus(m, s)
-
-    #s.write("1M100\r")
-    #time.sleep(0.2)
-    #while s.inWaiting(): 
-    #    s.read()
-#-----------------------------------------
-
+    for m in xrange(1, 9):
+        r.setspeed(m, 0)
 
 # Define some colors
 BLACK    = (   0,   0,   0)
@@ -135,106 +129,89 @@ textPrint = TextPrint()
 # Stupid SDL logging bug in gamejs joystick module. Log to file
 log = open("test.log", "w")
 
-# So, each joint we control has a state: are we stepping it +, -, or leaving it alone
-basemode = 0
-shouldermode = 0
-elbowmode = 0
-wristpitchmode = 0
-wristrollmode = 0
-grippermode = 0
-
-stepmultiplier = 10
-grippermultiplier = 2
-
 controlthreshold = 0.2
+
+def pygame_event_to_scorbot_state(event, state):
+    if event.type == pygame.JOYBUTTONDOWN:
+        if event.button == 0:
+            state.modes['gripper'] = 1
+        elif event.button == 2 or event.button == 3:
+            state.modes['gripper'] = -1
+
+    if event.type == pygame.JOYBUTTONUP:
+        state.modes['gripper'] = 0
+
+    if event.type == pygame.JOYAXISMOTION and event.axis == 2:
+        if event.value < -1*controlthreshold:
+            state.modes['base'] = 1
+        elif event.value > controlthreshold:
+            state.modes['base'] = -1
+        else:
+            state.modes['base'] = 0
+            
+    if event.type == pygame.JOYAXISMOTION:
+        if event.axis == 1:
+            if event.value < -1*controlthreshold:
+                state.modes['elbow'] = -1
+            elif event.value > controlthreshold:
+                state.modes['elbow'] = 1
+            else:
+                state.modes['elbow'] = 0
+        elif event.axis == 0:
+            if event.value < -1*controlthreshold:
+                state.modes['shoulder'] = -1
+            elif event.value > controlthreshold:
+                state.modes['shoulder'] = 1
+            else:
+                state.modes['shoulder'] = 0
+                
+    if event.type == pygame.JOYHATMOTION:
+        if event.value[0] < 0:
+            state.modes['wristroll'] = -1
+        elif event.value[0] > 0:
+            state.modes['wristroll'] = 1
+        else:
+            state.modes['wristroll'] = 0
+            
+        if event.value[1] < 0:
+            state.modes['wristpitch'] = -1
+        elif event.value[1] > 0:
+            state.modes['wristpitch'] = 1
+        else:
+            state.modes['wristpitch'] = 0
+            
 
 # -------- Main Program Loop -----------
 while done==False:
     # EVENT PROCESSING STEP
-    dbmsg = ""
-
+    oldstate = rs.copy()
     for event in pygame.event.get(): # User did something
         if event.type == pygame.QUIT: # If user clicked close
             done=True # Flag that we are done so we exit this loop
-        
-        # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
+            
         if event.type == pygame.JOYBUTTONDOWN:
-            #print>>log, str(event)
-            if event.button == 0:
-                grippermode = 1
-            elif event.button == 2 or event.button == 3:
-                grippermode = -1
-            dbmsg = "BUTTONDOWN (%s) gripper %d" % (str(event), grippermode)
+            if event.button == 10:
+                #r.save_position()
+                # set "current arm state" as our go to position
+                for k in scorbot.counts.keys():
+                    scorbot.counts[k] = 0
+            elif event.button == 11:
+                # go back to last set position
+                cnts = scorbot.counts.copy()
+                for m in scorbot.counts.keys():
+                    scorbot.counts[m] = 0
+                import time
+                print "have recorded motor counts of:", cnts
+                for motor in cnts.keys():
+                    r.stepmotor(motor, -1 * cnts[motor])
+                while r.checkcompletion() == '0':
+                    time.sleep(0.2)
+                # r.restore_position()
+                break
 
-        if event.type == pygame.JOYBUTTONUP:
-            grippermode = 0
-            dbmsg = "BUTTONUP (%s) gripper %d" % (str(event), grippermode)
-
-        if event.type == pygame.JOYAXISMOTION and event.axis == 2:
-            if event.value < -1*controlthreshold:
-                basemode = 1
-            elif event.value > controlthreshold:
-                basemode = -1
-            else:
-                basemode = 0
- 
-        if event.type == pygame.JOYAXISMOTION:
-            if event.axis == 1:
-                if event.value < -1*controlthreshold:
-                    elbowmode = -1
-                elif event.value > controlthreshold:
-                    elbowmode = 1
-                else:
-                    elbowmode = 0
-            elif event.axis == 0:
-                if event.value < -1*controlthreshold:
-                    shouldermode = -1
-                elif event.value > controlthreshold:
-                    shouldermode = 1
-                else:
-                    shouldermode = 0
-
-        if event.type == pygame.JOYHATMOTION:
-            #log.write(str(event))
-            #log.write("\n")
-            #log.write(str(event.value[0]))
-            #log.write("\n")
-            if event.value[0] < 0:
-                wristrollmode = -1
-            elif event.value[0] > 0:
-                wristrollmode = 1
-            else:
-                wristrollmode = 0
-
-            if event.value[1] < 0:
-                wristpitchmode = -1
-            elif event.value[1] > 0:
-                wristpitchmode = 1
-            else:
-                wristpitchmode = 0
-
-    dbmsg += ", modes(%d, %d, %d, %d, %d, %d)" % (basemode, shouldermode, elbowmode, wristpitchmode, wristrollmode, grippermode)
-
-    if basemode != 0:
-        r.stepmotor(1, (stepmultiplier * basemode))
-    if shouldermode != 0:
-        r.stepmotor(2, (stepmultiplier * shouldermode))
-    if elbowmode != 0:
-        r.stepmotor(3, (stepmultiplier * elbowmode))
-    if wristpitchmode != 0:
-        r.stepmotor(4, ((stepmultiplier*0.3) * wristpitchmode))
-        r.stepmotor(5, (-1 * (stepmultiplier*0.3) * wristpitchmode))
-
-    if wristrollmode != 0:
-        r.stepmotor(4, ((stepmultiplier*0.3) * wristrollmode))
-        r.stepmotor(5, ((stepmultiplier*0.3) * wristrollmode))
-
-    if grippermode != 0:
-        r.stepmotor(8, (grippermultiplier * grippermode))
-
-    r.checkserial();
-    # while s.inWaiting():
-    #    s.read()
+        pygame_event_to_scorbot_state(event, rs)
+    
+    r.advance(oldstate, rs)
     dumpJoystickState(textPrint)
 
     # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
